@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lottie watermark remover</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700&display=swap">
+<style>
+:root{--bg:#e8ecf1;--panel:#fbfcfd;--ink:#14202e;--mute:#5b6878;--line:#cfd6df;--accent:#2f5bea;--accent-ink:#fff;--ok:#0f7a4d;--bad:#b3261e;--c1:#f1f4f8;--c2:#e2e7ee;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e141c;--panel:#161e29;--ink:#e8edf3;--mute:#93a0b0;--line:#2a3544;--accent:#6b8cff;--accent-ink:#0b1020;--ok:#4cd39a;--bad:#ff8a80;--c1:#1b2431;--c2:#232e3d}}
+:root[data-theme="dark"]{--bg:#0e141c;--panel:#161e29;--ink:#e8edf3;--mute:#93a0b0;--line:#2a3544;--accent:#6b8cff;--accent-ink:#0b1020;--ok:#4cd39a;--bad:#ff8a80;--c1:#1b2431;--c2:#232e3d}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1040px;margin:0 auto;padding:32px 20px 48px}
+h1{font-size:clamp(28px,5vw,44px);line-height:1.05;margin:0 0 8px;font-weight:700;letter-spacing:-.02em}
+.sub{color:var(--mute);margin:0 0 28px;max-width:56ch}
+.grid{display:grid;gap:20px;grid-template-columns:1fr}
+@media(min-width:860px){.grid{grid-template-columns:minmax(0,360px) minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.drop{display:block;border:2px dashed var(--line);border-radius:12px;padding:32px 16px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over,.drop:focus-within{border-color:var(--accent);background:var(--c1)}
+.drop b{display:block;font-size:18px;margin-bottom:4px}
+.drop span{color:var(--mute);font-size:14px}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.row{margin-top:18px}
+label.f{display:block;font-size:14px;color:var(--mute);margin-bottom:6px}
+select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit}
+button{font:inherit;cursor:pointer;border-radius:10px;padding:11px 16px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700;width:100%}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#msg{margin-top:16px;font-size:14px;min-height:21px}
+#msg.ok{color:var(--ok)}#msg.bad{color:var(--bad)}
+dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:14px 0 0;font-size:14px}
+dt{color:var(--mute)}dd{margin:0;word-break:break-all}
+.bar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:16px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:8px 14px;background:transparent}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.wrap{display:flex;justify-content:center;background:repeating-conic-gradient(var(--c1) 0 25%,var(--c2) 0 50%) 0 0/20px 20px;border-radius:10px;padding:14px;min-height:240px;align-items:center}
+#stage{max-width:100%}
+.empty{color:var(--mute);text-align:center;padding:24px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Lottie watermark remover</h1>
+  <p class="sub">Drop a Lottie or Jitter JSON file. The logo in the corner is removed, and you can preview the result before you download it.</p>
+  <div class="grid">
+    <section class="panel" aria-label="Input">
+      <label class="drop" id="drop">
+        <b>Choose a JSON file</b>
+        <span>or drag it onto this box</span>
+        <input type="file" id="file" accept=".json,application/json">
+      </label>
+      <div class="row">
+        <label class="f" for="corner">Watermark corner</label>
+        <select id="corner">
+          <option value="bottom-right">Bottom right</option>
+          <option value="bottom-left">Bottom left</option>
+          <option value="top-right">Top right</option>
+          <option value="top-left">Top left</option>
+        </select>
+      </div>
+      <div class="row"><button class="primary" id="dl" disabled>Download clean JSON</button></div>
+      <div id="msg" role="status" aria-live="polite"></div>
+      <dl id="info" hidden></dl>
+    </section>
+    <section class="panel" aria-label="Preview">
+      <div class="bar">
+        <div class="seg" role="group" aria-label="Version to preview">
+          <button id="vClean" aria-pressed="true" disabled>Without watermark</button>
+          <button id="vOrig" aria-pressed="false" disabled>Original</button>
+        </div>
+        <button id="pp" disabled>Pause</button>
+      </div>
+      <div class="wrap"><div id="stage"><div class="empty">Your animation preview appears here.</div></div></div>
+    </section>
+  </div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+let original=null,cleaned=null,name='animation',anim=null,view='clean',removedInfo=null;
+
+/* ---------- detection (same logic as the Python script) ---------- */
+const isAnim=p=>p&&Array.isArray(p.k)&&p.k.length&&typeof p.k[0]==='object'&&!Array.isArray(p.k[0]);
+function sv(p,def){if(!p||p.k==null)return def;const k=p.k;if(isAnim(p)){const s=k[0].s;return s!=null?s:def}return k}
+const two=(a,d)=>Array.isArray(a)?[a[0]??d,a[1]??d]:[d,d];
+function tf(l){const ks=l.ks||{};return{pos:two(sv(ks.p,[0,0]),0),anc:two(sv(ks.a,[0,0]),0),sca:two(sv(ks.s,[100,100]),100)}}
+function absBox(l,by){
+  const w=l.w||l.sw||0,h=l.h||l.sh||0,t=tf(l);
+  const sx=t.sca[0]/100,sy=t.sca[1]/100;
+  let x0=t.pos[0]-t.anc[0]*sx,y0=t.pos[1]-t.anc[1]*sy,x1=x0+w*sx,y1=y0+h*sy;
+  const seen=new Set();let par=l.parent;
+  while(par!=null&&by[par]&&!seen.has(par)){
+    seen.add(par);const p=by[par],pt=tf(p),px=pt.sca[0]/100,py=pt.sca[1]/100;
+    const ox=pt.pos[0]-pt.anc[0]*px,oy=pt.pos[1]-pt.anc[1]*py;
+    x0=ox+x0*px;x1=ox+x1*px;y0=oy+y0*py;y1=oy+y1*py;par=p.parent;
+  }
+  return[Math.min(x0,x1),Math.min(y0,y1),Math.max(x0,x1),Math.max(y0,y1)];
+}
+function inCorner(b,W,H,c){
+  const cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2,r=c.includes('right'),bt=c.includes('bottom');
+  return(r?cx>W*.5:cx<W*.5)&&(bt?cy>H*.6:cy<H*.4);
+}
+function countRefs(o,t){
+  let n=0;
+  if(Array.isArray(o)){for(const v of o)n+=countRefs(v,t)}
+  else if(o&&typeof o==='object'){if(o.refId===t)n++;for(const k in o)n+=countRefs(o[k],t)}
+  return n;
+}
+function findWatermark(d,corner){
+  const W=d.w||0,H=d.h||0,area=(W*H)||1,by={};
+  d.layers.forEach(l=>{if(l.ind!=null)by[l.ind]=l});
+  const c=[];
+  for(const l of d.layers){
+    if(![0,2,4,5].includes(l.ty))continue;
+    const b=absBox(l,by),a=Math.max(0,b[2]-b[0])*Math.max(0,b[3]-b[1]);
+    if(!a||a/area>.15||!inCorner(b,W,H,corner))continue;
+    const ks=l.ks||{};
+    if(isAnim(ks.p)||isAnim(ks.o))continue;
+    let anim=false,p=l.parent;
+    while(p!=null&&by[p]){if(isAnim((by[p].ks||{}).p)){anim=true;break}p=by[p].parent}
+    if(anim)continue;
+    c.push({l,b});
+  }
+  const score=({l,b})=>{
+    let s=0;if(l.ty===0)s+=2;
+    if(l.refId&&countRefs(d,l.refId)===1)s+=2;
+    const cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2;
+    s-=((corner.includes('right')?W-cx:cx)+(corner.includes('bottom')?H-cy:cy))/Math.max(W+H,1);
+    return s;
+  };
+  c.sort((a,b)=>score(b)-score(a));
+  return c.length?c[0].l:null;
+}
+function usedAssets(d){
+  const used=new Set();
+  const walk=o=>{if(Array.isArray(o))o.forEach(walk);else if(o&&typeof o==='object'){if(o.refId!=null)used.add(o.refId);for(const k in o)walk(o[k])}};
+  walk(d.layers);
+  let ch=true;
+  while(ch){ch=false;for(const a of d.assets||[]){if(used.has(a.id)&&a.layers){const n=used.size;walk(a.layers);if(used.size!==n)ch=true}}}
+  return used;
+}
+function removeWatermark(d,target){
+  const rm=new Set([target.ind]);
+  let ch=true;
+  while(ch){
+    ch=false;
+    for(const l of d.layers){
+      if(!rm.has(l.ind))continue;
+      const p=l.parent;
+      if(p==null||rm.has(p))continue;
+      const pl=d.layers.find(o=>o.ind===p);
+      const still=d.layers.some(o=>o.parent===p&&!rm.has(o.ind));
+      if(pl&&pl.ty===3&&!still){rm.add(p);ch=true}
+    }
+  }
+  const layers0=d.layers.length,assets0=(d.assets||[]).length;
+  d.layers=d.layers.filter(l=>!rm.has(l.ind));
+  const used=usedAssets(d);
+  if(d.assets)d.assets=d.assets.filter(a=>used.has(a.id));
+  return{layers:layers0-d.layers.length,assets:assets0-(d.assets||[]).length};
+}
+
+/* ---------- UI ---------- */
+function say(t,cls){const m=$('msg');m.textContent=t;m.className=cls||''}
+function info(rows){
+  const dl=$('info');dl.innerHTML='';
+  rows.forEach(([k,v])=>{const a=document.createElement('dt'),b=document.createElement('dd');a.textContent=k;b.textContent=v;dl.append(a,b)});
+  dl.hidden=!rows.length;
+}
+function show(which){
+  view=which;
+  const d=which==='clean'?cleaned:original;
+  $('vClean').setAttribute('aria-pressed',which==='clean');
+  $('vOrig').setAttribute('aria-pressed',which==='orig');
+  if(anim){anim.destroy();anim=null}
+  const st=$('stage');st.innerHTML='';
+  if(!d)return;
+  st.style.aspectRatio=d.w+'/'+d.h;
+  st.style.width='min(100%,'+Math.round(70*d.w/d.h)+'vh)';
+  try{
+    anim=lottie.loadAnimation({container:st,renderer:'svg',loop:true,autoplay:true,animationData:JSON.parse(JSON.stringify(d))});
+    $('pp').textContent='Pause';$('pp').disabled=false;
+  }catch(e){st.innerHTML='<div class="empty">This file could not be previewed.</div>'}
+}
+function process(){
+  if(!original)return;
+  const copy=JSON.parse(JSON.stringify(original));
+  const t=findWatermark(copy,$('corner').value);
+  if(!t){
+    cleaned=null;$('dl').disabled=true;$('vClean').disabled=true;
+    say('No watermark found in the '+$('corner').value.replace('-',' ')+' corner. Try another corner.','bad');
+    info([['File',name+'.json'],['Canvas',original.w+' × '+original.h]]);
+    show('orig');return;
+  }
+  const r=removeWatermark(copy,t);
+  cleaned=copy;
+  say('Watermark removed.','ok');
+  info([['File',name+'.json'],['Canvas',original.w+' × '+original.h],['Removed layer',(t.nm||'#'+t.ind)+' ('+(t.w||'?')+' × '+(t.h||'?')+')'],['Layers removed',String(r.layers)],['Assets removed',String(r.assets)]]);
+  $('dl').disabled=false;$('vClean').disabled=false;$('vOrig').disabled=false;
+  show('clean');
+}
+function load(file){
+  if(!file)return;
+  name=file.name.replace(/\.json$/i,'');
+  const fr=new FileReader();
+  fr.onload=()=>{
+    try{
+      const d=JSON.parse(fr.result);
+      if(!d||!Array.isArray(d.layers))throw new Error('x');
+      original=d;$('vOrig').disabled=false;process();
+    }catch(e){
+      original=cleaned=null;$('dl').disabled=true;$('vOrig').disabled=true;$('vClean').disabled=true;
+      say('That file is not a Lottie JSON. Choose a .json export from Lottie or Jitter.','bad');info([]);show('orig');
+    }
+  };
+  fr.readAsText(file);
+}
+$('file').addEventListener('change',e=>load(e.target.files[0]));
+const drop=$('drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>load(e.dataTransfer.files[0]));
+$('corner').addEventListener('change',process);
+$('vClean').addEventListener('click',()=>cleaned&&show('clean'));
+$('vOrig').addEventListener('click',()=>original&&show('orig'));
+$('pp').addEventListener('click',()=>{
+  if(!anim)return;
+  if(anim.isPaused){anim.play();$('pp').textContent='Pause'}else{anim.pause();$('pp').textContent='Play'}
+});
+$('dl').addEventListener('click',async()=>{
+  if(!cleaned)return;
+  const text=JSON.stringify(cleaned),fn=name+'_no_watermark.json';
+  try{
+    const dls=window.claude&&await window.claude.use('downloads');
+    if(dls){await dls.save({filename:fn,data:text});say('Saved '+fn,'ok');return}
+  }catch(e){if(e&&e.code==='declined'){say('Download cancelled.');return}}
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));
+  a.download=fn;document.body.appendChild(a);a.click();a.remove();
+});
+})();
+</script>
+</body>
+</html>
